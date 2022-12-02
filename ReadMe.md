@@ -1,5 +1,5 @@
 # MVO-Fusion
-This repository currently runs inference on Key-frames from the 6 cameras from Nuscenes-Mini and Nuscenes Dataset on a Scene-by-Scene basis.
+This repository currently runs TartanVO-inference on Key-frames from the 6 cameras from Nuscenes-Mini and Nuscenes Dataset on a Scene-by-Scene basis and plots the estimated trajectories for each of them on a 2D plot.
 ## Set-up
 1. Follow the steps as given in [TartanVO](https://github.com/neha-boloor/MVO-fusion/blob/main/README_TartanVO.md) to set up the docker. 
 2. Note the additional steps given below when you bring up the container.
