@@ -142,6 +142,7 @@ if __name__ == '__main__':
         plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname=result_dir+'/trajectory.png', title='ATE %.4f' %(results['ate_score']))
         np.save(osp.join(result_dir, "est.npy"), results["est_aligned"])
         np.save(osp.join(result_dir, "gt.npy"), results["gt_aligned"])
+        np.save(osp.join(result_dir, "ate.npy"), results["ate_score"])
     else:
         # plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname='results/'+testname+'.png', title='ATE %.4f' %(results['ate_score']))
         np.savetxt('results/'+testname+'.txt',poselist)
