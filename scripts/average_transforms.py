@@ -6,6 +6,8 @@ import os
 import os.path as osp
 import numpy as np
 
+from scipy.spatial.transform import Rotation as R
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -36,6 +38,32 @@ def average_quaternions(Q):
     eigenVectors = eigenVectors[:,eigenValues.argsort()[::-1]]
     # return the real part of the largest eigenvector (has only real part)
     return np.real(eigenVectors[:, 0]).flatten()
+
+
+def quat2eul(quat_data):
+    # Assuming quaternion is [dX, dY, dZ, W]
+    quat_data = np.array(quat_data)
+    eul = R.from_quat(quat_data).as_euler('xyz', degrees=False)
+    return eul
+
+def eul2quat(eul_data):
+    eul_data = np.array(eul_data)
+    quat = R.from_euler('xyz', angles=eul_data).as_quat()
+    return quat
+
+def euler_median_quaternion(Q):
+    assert len(Q.shape)==2, f"Shape of Q expected to be (N, 4). Given {Q.shape}"
+    E = np.stack([quat2eul(q) for q in Q], axis=0)  # (N, 3)
+    Emedian = np.median(E, axis=0)  # (3,)
+    qmedian = eul2quat(Emedian)
+    return qmedian
+
+def euler_mean_quaternion(Q):
+    assert len(Q.shape)==2, f"Shape of Q expected to be (N, 4). Given {Q.shape}"
+    E = np.stack([quat2eul(q) for q in Q], axis=0)  # (N, 3)
+    Emean = np.mean(E, axis=0)  # (3,)
+    qmean = eul2quat(Emean)
+    return qmean
 
 
 def average_translations(T):
@@ -75,10 +103,18 @@ if __name__ == "__main__":
     N = Q.shape[0]
     avg_rotation = np.zeros((N, 4))
     avg_translation = np.zeros((N, 3))
+    median_eul_rotation = np.zeros((N, 4))
+    mean_eul_rotation = np.zeros((N, 4))
 
     for i in range(N):
         avg_rotation[i] = average_quaternions(Q[i])
         avg_translation[i] = average_translations(T[i])
+        median_eul_rotation[i] = euler_median_quaternion(Q[i])
+        mean_eul_rotation[i] = euler_mean_quaternion(Q[i])
 
     transforms = np.concatenate([avg_translation, avg_rotation], axis=1)
+    transforms_median = np.concatenate([avg_translation, median_eul_rotation], axis=1)
+    transforms_mean = np.concatenate([avg_translation, mean_eul_rotation], axis=1)
     np.save(osp.join(output_dir, "avg_est.npy"), transforms)
+    np.save(osp.join(output_dir, "eul_median_est.npy"), transforms_median)
+    np.save(osp.join(output_dir, "eul_mean_est.npy"), transforms_mean)

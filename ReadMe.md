@@ -53,8 +53,10 @@ sh scripts/run_inference.sh
     The directory structure looks like ![this](./figures/results_dir.png)
 
 ## Fusion Approach #1: [Average Rotation + Translation]
-We use the approach described in this [paper](http://www.acsu.buffalo.edu/~johnc/ave_quat07.pdf) to perform a quaternion average for rotation and vector mean for translation to fuse the predictions from 6 sensors.
+We use the approach described in this [paper](http://www.acsu.buffalo.edu/~johnc/ave_quat07.pdf) to perform a quaternion average for rotation and vector mean for translation to fuse the predictions from 6 sensors. Additionally, we also compute median and mean of euler angles to average rotations. The outputs are dumped in files called 'avg_est.npy', 'eul_median_est.npy', 'eul_mean_est.npy' respectively. Each of the files contain outputs as (N, 7) with each row containing a 7D vector (translation | quaternion) of the average motion.
 ### Command to run quaternion + translation average:
+
+Note: change `data_root` variable within `average_transforms.py` to point to the dataset root path.
 
 * Per dataset per scene:
 ```bash
