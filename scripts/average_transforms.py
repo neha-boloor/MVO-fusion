@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     result_dir = osp.join("results", datastr, args.scene)
     output_dir = osp.join("results", datastr, args.scene, "average_transform_estimate")
-    if osp.exists(output_dir):
+    if not osp.exists(output_dir):
         os.makedirs(output_dir)
 
     sensors = [

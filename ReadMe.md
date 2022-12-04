@@ -16,7 +16,7 @@ nvidia-docker run -it -d --rm --network host --ipc=host -v $PWD:/tartanvo amigos
 #### Command to bring up the container everytime :
 ```bash
 docker exec -it <image_id> bash
-Ex: docker exec -it fe92847f8e00 bash
+Ex: docker exec -it aa492d8e86a5 bash
 ```
 
 ## Download Nuscenes-mini / Nuscenes and copy to the data folder within the container
@@ -34,8 +34,35 @@ wget "https://s3.amazonaws.com/data.nuscenes.org/public/v1.0/v1.0-trainval_meta.
 wget https://www.nuscenes.org/data/v1.0-mini.tgz -O nuscenes-mini
 ```
 
-## Command to run inference
+## Model Inference
+
+### Command to run inference per dataset per scene per camera
 
 ```bash
 python vo_trajectory_from_folder.py  --model-name tartanvo_1914.pkl --nuscenesmini --batch-size 1 --worker-num 0 --test-dir ../data/nuscenes_mini/scenes/scene-0061/CAM_BACK/key_frames --pose-file ../data/nuscenes_mini/scenes/scene-0061/CAM_BACK/pose_files/pose.txt
 ```
+
+### Command to run inference on all datasets [nuscenesmini and nuscenes] on all scenes and all 6 cameras:
+```bash
+sh scripts/run_inference.sh
+```
+
+* The results are stored on the results folder: '/results/<dataset_name>/<scene_name>/<sensor_name>/
+* The results include the GT and Estimated trajectories, the ATE score for the 2D trajectory plotted for the same.
+* Ex: Output for nuscenesmini, scene-0061, for CAM_FRONT can be found at :
+    The directory structure looks like ![this](./figures/results_dir.png)
+
+## Fusion Approach #1: [Average Rotation + Translation]
+We use the approach described in this [paper](http://www.acsu.buffalo.edu/~johnc/ave_quat07.pdf) to perform a quaternion average for rotation and vector mean for translation to fuse the predictions from 6 sensors.
+### Command to run quaternion + translation average:
+
+* Per dataset per scene:
+```bash
+python scripts/average_transforms.py --scene scene-0061 --version mini
+```
+
+* Across all datasets and scenes:
+```bash
+sh scripts/run_avg_quaternion.sh
+```
+This stores the average estimate under the results/<dataset_name>/<scene_name>/average_transform_estimate directory.
