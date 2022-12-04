@@ -1,3 +1,7 @@
 *.pyc
 models/
 data/
+results/nuscenesmini*
+results/nuscenes*
+trajectories/
+**.pt

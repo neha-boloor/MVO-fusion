@@ -33,3 +33,9 @@ wget "https://s3.amazonaws.com/data.nuscenes.org/public/v1.0/v1.0-trainval_meta.
 
 wget https://www.nuscenes.org/data/v1.0-mini.tgz -O nuscenes-mini
 ```
+
+## Command to run inference
+
+```bash
+python vo_trajectory_from_folder.py  --model-name tartanvo_1914.pkl --nuscenesmini --batch-size 1 --worker-num 0 --test-dir ../data/nuscenes_mini/scenes/scene-0061/CAM_BACK/key_frames --pose-file ../data/nuscenes_mini/scenes/scene-0061/CAM_BACK/pose_files/pose.txt
+```

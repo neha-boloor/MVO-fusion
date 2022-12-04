@@ -8,8 +8,9 @@ from TartanVO import TartanVO
 import argparse
 import numpy as np
 import cv2
-from os import mkdir
+from os import makedirs
 from os.path import isdir
+import os.path as osp
 
 def get_args():
     parser = argparse.ArgumentParser(description='HRL')
@@ -40,6 +41,8 @@ def get_args():
                         help='test trajectory gt pose file, used for scale calculation, and visualization (default: "")')
     parser.add_argument('--save-flow', action='store_true', default=False,
                         help='save optical flow (default: False)')
+    parser.add_argument('--save-features', action='store_true', default=False,
+                        help='save layer 5 features from TartanVO (default: False)')
 
     args = parser.parse_args()
 
@@ -49,21 +52,26 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
 
-    testvo = TartanVO(args.model_name)
+    testvo = TartanVO(args.model_name, return_feats=args.save_features)
 
     # load trajectory data from a folder
+    intrinsic_file = None
     datastr = 'tartanair'
     if args.kitti:
         datastr = 'kitti'
     elif args.euroc:
         datastr = 'euroc'
     elif args.nuscenesmini:
-        datastr = 'nuscenes-mini'
+        datastr = 'nuscenesmini'
+        intrinsic_file = args.pose_file.replace(
+            "pose_files", "intrinsics").replace("pose.txt", "intrinsics.npy")
     elif args.nuscenes:
         datastr = 'nuscenes'
+        intrinsic_file = args.pose_file.replace(
+            "pose_files", "intrinsics").replace("pose.txt", "intrinsics.npy")
     else:
         datastr = 'tartanair'
-    focalx, focaly, centerx, centery = dataset_intrinsics(datastr) 
+    focalx, focaly, centerx, centery = dataset_intrinsics(datastr, intrinsic_file=intrinsic_file) 
     if args.kitti_intrinsics_file.endswith('.txt') and datastr=='kitti':
         focalx, focaly, centerx, centery = load_kiiti_intrinsics(args.kitti_intrinsics_file)
 
@@ -77,18 +85,28 @@ if __name__ == '__main__':
 
     motionlist = []
     testname = datastr + '_' + args.model_name.split('.')[0]
+    camera = args.test_dir.split('/')[-2]
+    scene = args.test_dir.split('/')[-3]
     if args.save_flow:
-        flowdir = 'results/'+testname+'_flow'
+        flowdir = 'results/' + testname + '_flow'
         if not isdir(flowdir):
-            mkdir(flowdir)
+            makedirs(flowdir)
         flowcount = 0
+    if args.save_features:
+        featdir = 'results/' + testname + '_feat'
+        if not isdir(featdir):
+            makedirs(featdir)
+        featcount = 0
     while True:
         try:
             sample = testDataiter.next()
         except StopIteration:
             break
 
-        motions, flow = testvo.test_batch(sample)
+        if args.save_features:
+            motions, flow, feats = testvo.test_batch(sample)
+        else:
+            motions, flow = testvo.test_batch(sample)
         motionlist.extend(motions)
 
         if args.save_flow:
@@ -98,6 +116,13 @@ if __name__ == '__main__':
                 flow_vis = visflow(flowk)
                 cv2.imwrite(flowdir+'/'+str(flowcount).zfill(6)+'.png',flow_vis)
                 flowcount += 1
+        
+        if args.save_features:
+            for k in range(feats.shape[0]):
+                featk = feats[k]
+                np.save(featdir+'/' + camera + '/' +str(featcount).zfill(6)+'.npy',featk)
+                featcount += 1
+
 
     poselist = ses2poses_quat(np.array(motionlist))
 
@@ -111,21 +136,12 @@ if __name__ == '__main__':
             print("==> ATE: %.4f,\t KITTI-R/t: %.4f, %.4f" %(results['ate_score'], results['kitti_score'][0], results['kitti_score'][1]))
 
         # save results and visualization
-        plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname='results/'+testname+'.png', title='ATE %.4f' %(results['ate_score']))
-        # np.save('cam_front_scene_0_gt.npy', results['gt_aligned'])
-        # np.save('cam_front_scene_0_est.npy', results['est_aligned'])
-        # np.save('cam_front_left_scene_0_gt.npy', results['gt_aligned'])
-        # np.save('cam_front_left_scene_0_est.npy', results['est_aligned'])
-        np.save('cam_front_right_scene_0_gt.npy', results['gt_aligned'])
-        np.save('cam_front_right_scene_0_est.npy', results['est_aligned'])
-
-        # np.save('cam_back_scene_0_gt.npy', results['gt_aligned'])
-        # np.save('cam_back_scene_0_est.npy', results['est_aligned'])
-        # np.save('cam_back_left_scene_0_gt.npy', results['gt_aligned'])
-        # np.save('cam_back_left_scene_0_est.npy', results['est_aligned'])
-        # np.save('cam_back_right_scene_0_gt.npy', results['gt_aligned'])
-        # np.save('cam_back_right_scene_0_est.npy', results['est_aligned'])
-        np.savetxt('results/'+testname+'.txt',results['est_aligned'])
+        result_dir = osp.join("results", datastr, scene, camera)
+        if not isdir(result_dir):
+            makedirs(result_dir)
+        plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname=result_dir+'/trajectory.png', title='ATE %.4f' %(results['ate_score']))
+        np.save(osp.join(result_dir, "est.npy"), results["est_aligned"])
+        np.save(osp.join(result_dir, "gt.npy"), results["gt_aligned"])
     else:
         # plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname='results/'+testname+'.png', title='ATE %.4f' %(results['ate_score']))
         np.savetxt('results/'+testname+'.txt',poselist)
