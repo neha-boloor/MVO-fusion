@@ -52,14 +52,16 @@ def eul2quat(eul_data):
     return quat
 
 def euler_median_quaternion(Q):
-    assert len(Q.shape)==2, f"Shape of Q expected to be (N, 4). Given {Q.shape}"
+    if len(Q.shape)!=2:
+        print("Shape of Q expected to be (N, 4). Given " + str(Q.shape))
     E = np.stack([quat2eul(q) for q in Q], axis=0)  # (N, 3)
     Emedian = np.median(E, axis=0)  # (3,)
     qmedian = eul2quat(Emedian)
     return qmedian
 
 def euler_mean_quaternion(Q):
-    assert len(Q.shape)==2, f"Shape of Q expected to be (N, 4). Given {Q.shape}"
+    if len(Q.shape)!=2:
+        print("Shape of Q expected to be (N, 4). Given " + str(Q.shape))
     E = np.stack([quat2eul(q) for q in Q], axis=0)  # (N, 3)
     Emean = np.mean(E, axis=0)  # (3,)
     qmean = eul2quat(Emean)
@@ -86,10 +88,12 @@ if __name__ == "__main__":
         os.makedirs(output_dir)
 
     sensors = [
-        'CAM_FRONT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT', 'CAM_BACK','CAM_BACK_LEFT', 'CAM_BACK_RIGHT'
+        'CAM_FRONT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT', 
+        'CAM_BACK','CAM_BACK_LEFT', 'CAM_BACK_RIGHT'
     ]
 
     qs, ts = [], []
+    gt_qs, gt_ts = [], []
     for sensor in sensors:
         pred_file = osp.join(result_dir, sensor, "est.npy")
         transform = np.load(pred_file)
@@ -97,14 +101,27 @@ if __name__ == "__main__":
         q = transform[:, 3:]
         ts.append(trans)
         qs.append(q)
+        
+        # GT quaternion in npy file is already [x, y, z, w] for Nuscenes
+        gt_file = osp.join(result_dir, sensor, "gt.npy")
+        gt_transform = np.load(gt_file)
+        gt_trans = gt_transform[:, :3]
+        gt_q = gt_transform[:, 3:]
+        gt_qs.append(gt_q)
+        gt_ts.append(gt_trans)
 
     Q = np.stack(qs, axis=1)
     T = np.stack(ts, axis=1)
+    gt_Q = np.stack(gt_qs, axis=1)
+    gt_T = np.stack(gt_ts, axis=1)
+
     N = Q.shape[0]
     avg_rotation = np.zeros((N, 4))
     avg_translation = np.zeros((N, 3))
     median_eul_rotation = np.zeros((N, 4))
     mean_eul_rotation = np.zeros((N, 4))
+    gt_avg_rotation = np.zeros((N, 4))
+    gt_avg_translation = np.zeros((N, 3))
 
     for i in range(N):
         avg_rotation[i] = average_quaternions(Q[i])
@@ -112,9 +129,14 @@ if __name__ == "__main__":
         median_eul_rotation[i] = euler_median_quaternion(Q[i])
         mean_eul_rotation[i] = euler_mean_quaternion(Q[i])
 
+        gt_avg_rotation[i] = average_quaternions(gt_Q[i])
+        gt_avg_translation[i] = average_translations(gt_T[i])
+
     transforms = np.concatenate([avg_translation, avg_rotation], axis=1)
     transforms_median = np.concatenate([avg_translation, median_eul_rotation], axis=1)
     transforms_mean = np.concatenate([avg_translation, mean_eul_rotation], axis=1)
+    gt_transforms = np.concatenate([gt_avg_translation, gt_avg_rotation], axis=1)
     np.save(osp.join(output_dir, "avg_est.npy"), transforms)
     np.save(osp.join(output_dir, "eul_median_est.npy"), transforms_median)
     np.save(osp.join(output_dir, "eul_mean_est.npy"), transforms_mean)
+    np.save(osp.join(output_dir, "avg_gt.npy"), gt_transforms)
