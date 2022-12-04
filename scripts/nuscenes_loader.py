@@ -8,12 +8,23 @@ import os.path as osp
 
 import cv2
 from nuscenes.nuscenes import NuScenes as NuScenesDevKit
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 
 
+def make_intrinsics_layer(w, h, fx, fy, ox, oy):
+    ww, hh = np.meshgrid(range(w), range(h))
+    ww = (ww.astype(np.float32) - ox + 0.5) / fx
+    hh = (hh.astype(np.float32) - oy + 0.5) / fy
+    intrinsicLayer = np.stack((ww, hh)).transpose(1, 2, 0)
+    return intrinsicLayer
+
+
 class NuScenes:
+    sensors = ['CAM_FRONT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT', 'CAM_BACK','CAM_BACK_LEFT', 'CAM_BACK_RIGHT']
+
     def __init__(
         self,
         version='v1.0-trainval',
@@ -23,7 +34,6 @@ class NuScenes:
     ):
         self.dataroot = dataroot
         self.nusc = NuScenesDevKit(version=version, dataroot=dataroot)
-        self.sensors = ['CAM_FRONT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT', 'CAM_BACK','CAM_BACK_LEFT', 'CAM_BACK_RIGHT']
         self.scenes = self.nusc.scene
 
         self.index = []
@@ -72,12 +82,28 @@ class NuScenes:
             sample_data = self.nusc.get('sample_data', curr_cam['token'])
             filename = osp.join(self.dataroot, sample_data['filename'])
             output_dict[sensor]['image'] = self.transforms(cv2.imread(filename))
+            h, w = output_dict[sensor]['image'].shape[-2:]
 
             # load the pose for current camera
             ego_pose_token = curr_cam['ego_pose_token']
             ego_pose = self.nusc.get('ego_pose', ego_pose_token)
             output_dict[sensor]['translation'] =  torch.FloatTensor(ego_pose['translation'])
             output_dict[sensor]['rotation'] = torch.FloatTensor(ego_pose['rotation'])
+
+            # load the camera intrinsics
+            calibration_token = curr_cam['calibrated_sensor_token']
+            calibration = self.nusc.get('calibrated_sensor', calibration_token)
+            intrinsic_matrix = np.array(calibration['camera_intrinsic'])
+            fx, fy = intrinsic_matrix[0, 0], intrinsic_matrix[1, 1]
+            cx, cy = intrinsic_matrix[0, 2], intrinsic_matrix[1, 2]
+            intrinsicLayer = make_intrinsics_layer(w, h, fx, fy, cx, cy)
+            # output_dict[sensor]['intrinsic'] = intrinsicLayer
+
+            output_dict[sensor]['intrinsic'] = torch.from_numpy(
+                cv2.resize(
+                    intrinsicLayer, dsize=(0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR
+                )
+            ).float().permute(2, 0, 1)
         return output_dict
 
 

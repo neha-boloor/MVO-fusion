@@ -216,27 +216,15 @@ def visflow(flownp, maxF=500.0, n=8, mask=None, hueMax=179, angShift=0.0):
     return bgr
 
 
-def dataset_intrinsics(dataset='tartanair'):
+def dataset_intrinsics(dataset='tartanair', intrinsic_file=None):
     if dataset == 'kitti':
         focalx, focaly, centerx, centery = 707.0912, 707.0912, 601.8873, 183.1104
     elif dataset == 'euroc':
         focalx, focaly, centerx, centery = 458.6539916992, 457.2959899902, 367.2149963379, 248.3750000000
     elif dataset == 'tartanair':
         focalx, focaly, centerx, centery = 320.0, 320.0, 320.0, 240.0
-    elif dataset == 'nuscenes_mini':
-        # for scene0
-        # CAMERA_FRONT:
-        # focalx, focaly, centerx, centery = 1266.417203046554, 1266.417203046554, 816.2670197447984, 491.50706579294757
-        # # CAMERA_FRONT_LEFT:
-        # focalx, focaly, centerx, centery = 1272.5979470598488, 1272.5979470598488, 826.6154927353808, 479.75165386361925
-        # # CAMERA_FRONT_RIGHT:
-        # focalx, focaly, centerx, centery = 1260.847444600469,1260.8474446004698,807.968244525554,495.3344268742088
-        # # CAMERA_BACK:
-        # focalx, focaly, centerx, centery = 809.2209905677063, 809.2209905677063, 829.2196003259838, 481.77842384512485
-        # # CAMERA_BACK_LEFT:
-        # focalx, focaly, centerx, centery = 1256.7414812095406, 1256.7414812095406, 792.1125740759628, 492.7757465151356
-        # # CAMERA_BACK_RIGHT:
-        # focalx, focaly, centerx, centery = 1259.5137405846733, 1259.5137405846733, 807.2529053838625, 501.19579884916527
+    elif dataset == 'nuscenesmini' or dataset == 'nuscenes':
+        focalx, focaly, centerx, centery = np.load(intrinsic_file)
     else:
         return None
     return focalx, focaly, centerx, centery
