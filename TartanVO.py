@@ -33,19 +33,22 @@
 import torch
 import numpy as np
 import time
+import os
 
 np.set_printoptions(precision=4, suppress=True, threshold=10000)
 
 from Network.VONet import VONet
 
-class TartanVO(object):
-    def __init__(self, model_name):
+class TartanVO(torch.nn.Module):
+    def __init__(self, model_name, root_path='models/', return_feats=False):
+        super(TartanVO, self).__init__()
         # import ipdb;ipdb.set_trace()
         self.vonet = VONet()
+        self.return_feats = return_feats
 
         # load the whole model
         if model_name.endswith('.pkl'):
-            modelname = 'models/' + model_name
+            modelname = os.path.join(root_path, model_name)
             self.load_model(self.vonet, modelname)
 
         self.vonet.cuda()
@@ -87,7 +90,11 @@ class TartanVO(object):
 
         with torch.no_grad():
             starttime = time.time()
-            flow, pose = self.vonet(inputs)
+            if self.return_feats:
+                flow, pose, feats = self.vonet(inputs, return_feats=True)
+                featsnp = feats.data.cpu().numpy()
+            else:
+                flow, pose = self.vonet(inputs, return_feats=False)
             inferencetime = time.time()-starttime
             # import ipdb;ipdb.set_trace()
             posenp = pose.data.cpu().numpy()
@@ -99,12 +106,15 @@ class TartanVO(object):
         if 'motion' in sample:
             motions_gt = sample['motion']
             scale = np.linalg.norm(motions_gt[:,:3], axis=1)
-            trans_est = posenp[:,:3]
+            trans_est = posenp[:, :3]
             trans_est = trans_est/np.linalg.norm(trans_est,axis=1).reshape(-1,1)*scale.reshape(-1,1)
             posenp[:,:3] = trans_est 
         else:
             print('    scale is not given, using 1 as the default scale value..')
 
         print("{} Pose inference using {}s: \n{}".format(self.test_count, inferencetime, posenp))
-        return posenp, flownp
+        if self.return_feats:
+            return posenp, flownp, featsnp
+        else:
+            return posenp, flownp
 

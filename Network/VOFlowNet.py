@@ -122,7 +122,7 @@ class VOFlowRes(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, return_feats=False):
         x = self.firstconv(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -133,4 +133,7 @@ class VOFlowRes(nn.Module):
         x = x.view(x.shape[0], -1)
         x_trans = self.voflow_trans(x)
         x_rot = self.voflow_rot(x)
-        return torch.cat((x_trans, x_rot), dim=1)
+        if return_feats:
+            return torch.cat((x_trans, x_rot), dim=1), x
+        else:
+            return torch.cat((x_trans, x_rot), dim=1)
