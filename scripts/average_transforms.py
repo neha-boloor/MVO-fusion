@@ -110,8 +110,9 @@ if __name__ == "__main__":
         gt_qs.append(gt_q)
         gt_ts.append(gt_trans)
 
-    Q = np.stack(qs, axis=1)
-    T = np.stack(ts, axis=1)
+    # load the absolute poses across the trajectories
+    Q = np.stack(qs, axis=1)  # (N, C, 3)
+    T = np.stack(ts, axis=1)  # (N, C, 3) 
     gt_Q = np.stack(gt_qs, axis=1)
     gt_T = np.stack(gt_ts, axis=1)
 
@@ -123,14 +124,33 @@ if __name__ == "__main__":
     gt_avg_rotation = np.zeros((N, 4))
     gt_avg_translation = np.zeros((N, 3))
 
-    for i in range(N):
-        avg_rotation[i] = average_quaternions(Q[i])
-        avg_translation[i] = average_translations(T[i])
-        median_eul_rotation[i] = euler_median_quaternion(Q[i])
-        mean_eul_rotation[i] = euler_mean_quaternion(Q[i])
+    # initialization
+    avg_rotation[0] = average_quaternions(Q[0])
+    median_eul_rotation[0] = euler_median_quaternion(Q[0])
+    mean_eul_rotation[0] = euler_mean_quaternion(Q[0])
 
+    # get the averaged GT and translation across cameras
+    for i in range(N):
         gt_avg_rotation[i] = average_quaternions(gt_Q[i])
         gt_avg_translation[i] = average_translations(gt_T[i])
+        avg_translation[i] = average_translations(T[i])
+
+    # average the relative rotations only
+    for i in range(1, N):
+        # compute relative R from absolute
+        prev_q, curr_q = R.from_quat(Q[i-1]), R.from_quat(Q[i])
+        q_rel = (curr_q * prev_q.inv()).as_quat()
+
+        # compute the average relative transformations
+        avg_q_rel = R.from_quat(average_quaternions(q_rel))
+        eul_med_q_rel = R.from_quat(euler_median_quaternion(q_rel))
+        eul_mean_q_rel = R.from_quat(euler_mean_quaternion(q_rel))
+
+        # convert relative transformations back to absolute
+        prev_q_abs = R.from_quat(avg_rotation[i-1])
+        avg_rotation[i] = (avg_q_rel * prev_q_abs).as_quat()
+        median_eul_rotation[i] = (eul_med_q_rel * prev_q_abs).as_quat()
+        mean_eul_rotation[i] = (eul_mean_q_rel * prev_q_abs).as_quat()
 
     transforms = np.concatenate([avg_translation, avg_rotation], axis=1)
     transforms_median = np.concatenate([avg_translation, median_eul_rotation], axis=1)
@@ -139,4 +159,4 @@ if __name__ == "__main__":
     np.save(osp.join(output_dir, "avg_est.npy"), transforms)
     np.save(osp.join(output_dir, "eul_median_est.npy"), transforms_median)
     np.save(osp.join(output_dir, "eul_mean_est.npy"), transforms_mean)
-    np.save(osp.join(output_dir, "avg_gt.npy"), gt_transforms)
+    np.savetxt(osp.join(output_dir, "avg_gt.txt"), gt_transforms)
