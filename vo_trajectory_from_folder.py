@@ -123,7 +123,6 @@ if __name__ == '__main__':
                 np.save(featdir+'/' + camera + '/' +str(featcount).zfill(6)+'.npy',featk)
                 featcount += 1
 
-
     poselist = ses2poses_quat(np.array(motionlist))
 
     # calculate ATE, RPE, KITTI-RPE
@@ -139,10 +138,13 @@ if __name__ == '__main__':
         result_dir = osp.join("results", datastr, scene, camera)
         if not isdir(result_dir):
             makedirs(result_dir)
-        plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname=result_dir+'/trajectory.png', title='ATE %.4f' %(results['ate_score']))
+        plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname=result_dir+'/trajectory.png', title='ATE: %.4f,\t KITTI-R/t: %.4f, %.4f' %(results['ate_score'], results['kitti_score'][0], results['kitti_score'][1]))
         np.save(osp.join(result_dir, "est.npy"), results["est_aligned"])
         np.save(osp.join(result_dir, "gt.npy"), results["gt_aligned"])
         np.save(osp.join(result_dir, "ate.npy"), results["ate_score"])
+        np.save(osp.join(result_dir, "kitti_score.npy"), np.array(results["kitti_score"]))
+        np.save(osp.join(result_dir, "poselist.npy"), np.array(poselist))
     else:
         # plot_traj(results['gt_aligned'], results['est_aligned'], vis=False, savefigname='results/'+testname+'.png', title='ATE %.4f' %(results['ate_score']))
-        np.savetxt('results/'+testname+'.txt',poselist)
+        pass
+    # np.save('results/'+testname+'.npy',poselist)

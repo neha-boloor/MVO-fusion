@@ -88,7 +88,10 @@ class NuScenes:
             ego_pose_token = curr_cam['ego_pose_token']
             ego_pose = self.nusc.get('ego_pose', ego_pose_token)
             output_dict[sensor]['translation'] =  torch.FloatTensor(ego_pose['translation'])
-            output_dict[sensor]['rotation'] = torch.FloatTensor(ego_pose['rotation'])
+            # rotation is [w, x, y, z] in nuscenes, need [x, y, z, w]
+            rotation_nuscenes = ego_pose['rotation']
+            rotation = rotation_nuscenes[1:] + rotation_nuscenes[:1]
+            output_dict[sensor]['rotation'] = torch.FloatTensor(rotation)
 
             # load the camera intrinsics
             calibration_token = curr_cam['calibrated_sensor_token']

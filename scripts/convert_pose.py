@@ -99,7 +99,9 @@ if __name__ == "__main__":
                     string = ''
                     for ele in ego_ele['translation']:
                         string += str(ele) + ' '
-                    for ele in ego_ele['rotation']:
+                    rotation_nuscenes = ego_ele['rotation']
+                    rotation = rotation_nuscenes[1:] + rotation_nuscenes[:1]
+                    for ele in rotation:
                         string+=str(ele) +  ' '
                     string += '\n'
                     log.write(string)
